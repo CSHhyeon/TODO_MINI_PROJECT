@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.multicampus.todo.dao.ITodoDao">
+    <select id="viewDao" resultType="com.multicampus.todo.dto.TodoDto">
+        select * from tbl_todo where tno = #{param1}
+    </select>
+
+    <insert id="insertDao">
+        insert into tbl_todo(tno, title, duedate, writer)
+        values(todo_seq.nextval, #{param1}, #{param2}, #{param3})
+    </insert>
+
+    <!--입력된 파라미터의 순서에 따라 param 뒤에 붙는 숫자가 정해짐.-->
+    <update id="updateDao">
+        update tbl_todo set title = #{param2}, duedate = #{param3}, finished = #{param4}
+        where tno = #{param1}
+    </update>
+
+    <delete id="deleteDao">
+        delete from tbl_todo where tno = #{param1}
+    </delete>
+
+    <!-- 페이징용 -->
+    <!--<select id="selectList" resultType="com.multicampus.todo.dto.TodoDto">
+        SELECT t.tno, t.title, t.writer, t.dueDate, t.finished
+        FROM (
+                 SELECT tt.*, ROW_NUMBER() OVER(ORDER BY tt.tno DESC) row_num
+                 FROM tbl_todo tt
+             ) t
+        WHERE row_num BETWEEN #{skip} + 1 AND #{skip} + #{size}
+    </select>-->
+
+    <select id="selectList" resultType="com.multicampus.todo.dto.TodoDto">
+        SELECT t.tno, t.title, t.writer, t.dueDate, t.finished
+        FROM (
+        SELECT tt.*, ROW_NUMBER() OVER(ORDER BY tt.tno DESC) row_num
+        FROM tbl_todo tt
+        <where>
+            <if test="types != null and types.length > 0">
+                <trim prefix="and">
+                    <foreach collection="types" item="type" open="(" close=") " separator=" OR ">
+                        <if test="type == 't'.toString()">
+                            title LIKE '%' || NVL2(#{keyword}, #{keyword}, '') || '%'
+                        </if>
+                        <if test="type == 'w'.toString()">
+                            writer LIKE '%' || NVL2(#{keyword}, #{keyword}, '') || '%'
+                        </if>
+                    </foreach>
+                </trim>
+            </if>
+            <if test="finished">
+                <trim prefix="and">
+                    finished = #{finished}
+                </trim>
+            </if>
+            <trim prefix="and">
+                dueDate BETWEEN NVL2(#{from}, #{from}, (SELECT TO_CHAR(dueDate, 'yyyy-MM-dd') FROM (SELECT * FROM tbl_todo ORDER BY duedate ASC) WHERE ROWNUM = 1))
+                AND NVL2(#{to}, #{to}, (SELECT TO_CHAR(dueDate + 1, 'yyyy-MM-dd') FROM (SELECT * FROM tbl_todo ORDER BY duedate DESC) WHERE ROWNUM = 1))
+            </trim>
+        </where>
+        ) t
+        WHERE row_num BETWEEN #{skip} + 1 AND #{page} * #{size}
+    </select>
+
+
+    <!-- 페이징용 : 페이지를 결정하기 위해 모든 게시글의 갯수를 반환 -->
+    <select id="getCount" resultType="int">
+        select count(tno) from tbl_todo
+        <where>
+            <if test="types != null and types.length > 0">
+                <trim prefix="and">
+                    <foreach collection="types" item="type" open="(" close=") " separator=" OR ">
+                        <if test="type == 't'.toString()">
+                            title LIKE '%' || NVL2(#{keyword}, #{keyword}, '') || '%'
+                        </if>
+                        <if test="type == 'w'.toString()">
+                            writer LIKE '%' || NVL2(#{keyword}, #{keyword}, '') || '%'
+                        </if>
+                    </foreach>
+                </trim>
+            </if>
+            <if test="finished">
+                <trim prefix="and">
+                    finished = #{finished}
+                </trim>
+            </if>
+            <trim prefix="and">
+                dueDate BETWEEN NVL2(#{from}, #{from}, (SELECT TO_CHAR(dueDate, 'yyyy-MM-dd') FROM (SELECT * FROM tbl_todo ORDER BY duedate ASC) WHERE ROWNUM = 1))
+                AND NVL2(#{to}, #{to}, (SELECT TO_CHAR(dueDate + 1, 'yyyy-MM-dd') FROM (SELECT * FROM tbl_todo ORDER BY duedate DESC) WHERE ROWNUM = 1))
+            </trim>
+        </where>
+    </select>
+
+</mapper>
